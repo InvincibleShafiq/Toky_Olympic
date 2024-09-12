@@ -1,0 +1,74 @@
+from pyspark.sql.functions import col
+from pyspark.sql.types import IntegerType,DoubleType,BooleanType,StringType,StructType,StructField
+
+--------------------------------
+Mounting to the data directory
+
+# Unmount the directory if it is already mounted
+if len(dbutils.fs.mounts()) > 0:
+    existing_mounts = spark.createDataFrame(dbutils.fs.mounts())
+    if existing_mounts.filter(existing_mounts.mountPoint == '/mnt/tokyoolympic').count() > 0:
+        dbutils.fs.unmount('/mnt/tokyoolympic')
+
+# Mount the directory
+configs = {
+    "fs.azure.account.auth.type": "OAuth",
+    "fs.azure.account.oauth.provider.type": "org.apache.hadoop.fs.azurebfs.oauth2.ClientCredsTokenProvider",
+    "fs.azure.account.oauth2.client.id": "37779088-0ff0-4a81-ba3e-2a27c040671c",
+    "fs.azure.account.oauth2.client.secret": 'SecretID
+    "fs.azure.account.oauth2.client.endpoint": "https://login.microsoftonline.com/f0a8af0f-e316-4dc1-b53c-7705e33daefc/oauth2/token"
+}
+
+dbutils.fs.mount(
+    source="abfss://tokyo-olympic-data@tokyoolympicdatashafiq.dfs.core.windows.net/",
+    mount_point="/mnt/tokyoolympic",
+    extra_configs=configs
+)
+
+display(dbutils.fs.ls("/mnt/tokyoolympic"))
+
+
+----------------------------------
+Reading data 
+
+# Define the DataFrame
+athletes = spark.read.format("csv").option("header", "true").option("inferSchema", "true").load("/mnt/tokyoolympic/raw-data/athletes.csv")
+coaches = spark.read.format("csv").option("header", "true").option("inferSchema", "true").load("/mnt/tokyoolympic/raw-data/coaches.csv")
+EntriesGender = spark.read.format("csv").option("header", "true").option("inferSchema", "true").load("/mnt/tokyoolympic/raw-data/EntriesGender.csv")
+medals = spark.read.format("csv").option("header", "true").option("inferSchema", "true").load("/mnt/tokyoolympic/raw-data/medals.csv")
+Teams = spark.read.format("csv").option("header", "true").option("inferSchema", "true").load("/mnt/tokyoolympic/raw-data/Teams.csv")
+6bc94c1f-ac83-46a6-9251-5dc148edbb7f= spark.read.format("csv").option("header", "true").option("inferSchema", "true").load("/mnt/tokyoolympic/raw-data/Teams.csv")
+
+----------------------------------
+Reading the table
+EntriesGender.show()
+
+----------------------------------
+
+Printing Schema
+
+medals.printSchema()
+
+----------------------------------
+Modifying the Schema 
+
+EntriesGender = EntriesGender.withColumn("Female", col("Female").cast("int")).withColumn("male", col("male").cast("int")).withColumn("Total", col("Total").cast("int"))
+-----------------------------------
+Verifying schema (medals)
+medals.show()
+
+-----------------------------------
+top_gold_medal_countries 
+
+top_gold_medal_countries = medals.orderBy("Gold", ascending=False).select("TeamCountry","Gold","Total").show()
+-----------------------------------
+Writing dataset to ADSL Gen-2
+athletes.write.option("header","true").csv("/mnt/tokyoolympic/transform-data/athletes")
+coaches.write.option("header","true").csv("/mnt/tokyoolympic/transform-data/coaches")
+EntriesGender.write.option("header","true").csv("/mnt/tokyoolympic/transform-data/EntriesGender")
+medals.write.option("header","true").csv("/mnt/tokyoolympic/transform-data/medals")
+Teams.write.option("header","true").csv("/mnt/tokyoolympic/transform-data/Teams")
+
+
+
+
